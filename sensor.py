@@ -151,7 +151,6 @@ class NenSensor(CoordinatorEntity[NenDataCoordinator], SensorEntity):
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
 
-        sub = coordinator.data["subscriptions"][description.utility]
         utility_label = "Electricity" if description.utility == "EE" else "Gas"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}_{description.utility}")},

@@ -32,4 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Wrap into custom_components structure
+        run: |
+          mkdir -p custom_components/nen
+          find . -maxdepth 1 -not -name '.' -not -name 'custom_components' -not -name '.git' -not -name '.github' \
+            | xargs -I{} cp -r {} custom_components/nen/
       - uses: home-assistant/actions/hassfest@master
