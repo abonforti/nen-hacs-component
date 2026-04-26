@@ -1,0 +1,5 @@
+ruff
+pytest
+pytest-asyncio
+homeassistant
+pycognito>=2024.5.1
