@@ -4,8 +4,8 @@
   "codeowners": ["@abonforti"],
   "config_flow": true,
   "documentation": "https://github.com/abonforti/nen-hacs-component",
-  "issue_tracker": "https://github.com/abonforti/nen-hacs-component/issues",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/abonforti/nen-hacs-component/issues",
   "requirements": ["pycognito>=2024.5.1"],
   "version": "1.0.0"
 }
