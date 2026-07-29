@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -156,8 +156,8 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 def _parse_contract(data: dict) -> dict:
     return {
         "monthly_rate": _safe_float(data.get("subscriptionPrice")),
-        "end_date": data.get("renewalDate"),
-        "recalculation_date": data.get("recalculationDate"),
+        "end_date": _parse_date(data.get("renewalDate")),
+        "recalculation_date": _parse_date(data.get("recalculationDate")),
         "offer_type": data.get("offerType"),
     }
 
@@ -176,8 +176,8 @@ def _parse_bill(invoice: dict | None) -> dict:
         return {}
     return {
         "amount": _safe_float(invoice.get("amount")),
-        "emission_date": invoice.get("emissionDate"),
-        "charge_date": invoice.get("chargeDate"),
+        "emission_date": _parse_date(invoice.get("emissionDate")),
+        "charge_date": _parse_date(invoice.get("chargeDate")),
         "status": invoice.get("status"),
         "number": invoice.get("number"),
         "residual": _safe_float(invoice.get("residual")),
@@ -225,6 +225,21 @@ def _parse_consumptions(data: dict) -> dict:
         "latest_value": latest_value,
         "latest_date": latest_date,
     }
+
+
+def _parse_date(value: str | None) -> date | None:
+    """Parse an ISO 'YYYY-MM-DD' string into a date object.
+
+    Required for anything fed into a SensorDeviceClass.DATE sensor's
+    native_value - Home Assistant expects an actual date object there, not a
+    string, and silently marks the entity unavailable otherwise.
+    """
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _safe_float(value: Any) -> float | None:
