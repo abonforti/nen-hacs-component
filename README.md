@@ -15,10 +15,15 @@ This integration polls NeN's API every 6 hours and exposes sensors for electrici
 | Sensor | Description | Unit |
 |---|---|---|
 | Consumption YTD | Year-to-date consumption | kWh / m³ |
+| Annual Cap | Estimated annual consumption cap (electricity only) | kWh |
+| Annual Cap Usage | Percentage of the annual cap used so far (electricity only); `delta_percentage` from NeN's own pacing indicator is exposed as an attribute | % |
 | Last Day Consumption | Latest smart meter daily reading (electricity only) | kWh |
 | Last Month Consumption | Latest distributor monthly reading (gas only) | m³ |
 | Monthly Rate | Current monthly subscription fee | EUR |
 | Unit Price | Current commodity unit price | EUR/kWh or EUR/m³ |
+| Last Bill Date | Emission date of the most recent bill | date |
+| Last Bill Charge Date | Direct-debit charge date of the most recent bill | date |
+| Last Bill Status | Payment status of the most recent bill (e.g. `PAY_OK`); amount/number/residual exposed as attributes | - |
 
 ## Requirements
 
