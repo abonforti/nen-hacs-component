@@ -110,3 +110,18 @@ class NenApiClient:
             "/invoices",
             params={"month": f"{month:02d}", "year": str(year), "pods": ",".join(pods)},
         )
+
+    async def get_bill_details(self, home_context_id: str) -> dict:
+        """Fetch billing history for a home context.
+
+        This is what the current nen.it frontend actually calls for the
+        "la tua rata" screen (`GET /bills/details/{homeContextId}`) — as
+        observed live it returns richer per-invoice data (emissionDate,
+        chargeDate, status, amount) than get_invoices() above, which no
+        longer appeared in a fresh capture of the site's network traffic
+        and may be stale against the current backend.
+        """
+        return await self._request(
+            f"/bills/details/{home_context_id}",
+            raw_auth=True,
+        )
