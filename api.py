@@ -38,7 +38,7 @@ class NenApiClient:
             raise NenAuthError(f"Authentication failed: {err}") from err
 
     def _authenticate_sync(self) -> None:
-        from pycognito import Cognito  # noqa: PLC0415
+        from pycognito import Cognito
 
         u = Cognito(COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID, username=self._username)
         u.authenticate(password=self._password)

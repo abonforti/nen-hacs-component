@@ -15,11 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: custom_components/nen
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - run: pip install ruff
-      - run: ruff check .
+      - run: ruff check custom_components/nen
 
   hacs:
     name: HACS validation
