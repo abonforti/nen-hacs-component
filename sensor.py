@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import NenDataCoordinator
+from .models import subscription_identity
 
 
 @dataclass(frozen=True)
@@ -128,11 +129,15 @@ async def async_setup_entry(
     subscriptions = coordinator.data.get("subscriptions", {})
 
     entities: list[NenSensor] = []
-    for desc in (*ELECTRICITY_SENSORS, *GAS_SENSORS):
-        sub = subscriptions.get(desc.utility)
-        if sub is None:
-            continue
-        entities.append(NenSensor(coordinator, entry, desc))
+    for subscription_id, sub in subscriptions.items():
+        descriptions = {
+            "EE": ELECTRICITY_SENSORS,
+            "GA": GAS_SENSORS,
+        }.get(sub.get("utility"), ())
+        for desc in descriptions:
+            entities.append(
+                NenSensor(coordinator, entry, desc, subscription_id)
+            )
 
     async_add_entities(entities)
 
@@ -146,23 +151,42 @@ class NenSensor(CoordinatorEntity[NenDataCoordinator], SensorEntity):
         coordinator: NenDataCoordinator,
         entry: ConfigEntry,
         description: NenSensorDescription,
+        subscription_id: str,
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._subscription_id = subscription_id
+
+        legacy_ids = coordinator.data.get("legacy_subscription_ids", {})
+        unique_prefix, device_suffix = subscription_identity(
+            entry.entry_id,
+            description.utility,
+            subscription_id,
+            legacy_ids,
+        )
+        self._attr_unique_id = f"{unique_prefix}_{description.key}"
 
         utility_label = "Electricity" if description.utility == "EE" else "Gas"
+        sub = coordinator.data["subscriptions"][subscription_id]
+        location = sub.get("home_name") or sub.get("home_address") or sub.get("pod")
+        device_name = f"NeN {utility_label}"
+        if len(
+            [
+                item
+                for item in coordinator.data["subscriptions"].values()
+                if item.get("utility") == description.utility
+            ]
+        ) > 1 and location:
+            device_name = f"{device_name} - {location}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{entry.entry_id}_{description.utility}")},
-            name=f"NeN {utility_label}",
+            identifiers={(DOMAIN, f"{entry.entry_id}_{device_suffix}")},
+            name=device_name,
             configuration_url="https://nen.it",
         )
 
     @property
     def _subscription(self) -> dict:
-        return self.coordinator.data["subscriptions"].get(
-            self.entity_description.utility, {}
-        )
+        return self.coordinator.data["subscriptions"].get(self._subscription_id, {})
 
     @property
     def native_value(self) -> Any:
@@ -173,10 +197,14 @@ class NenSensor(CoordinatorEntity[NenDataCoordinator], SensorEntity):
         sub = self._subscription
         attrs: dict[str, Any] = {}
 
+        attrs["home"] = sub.get("home_name")
+        attrs["address"] = sub.get("home_address")
+        attrs["pod"] = sub.get("pod")
+        attrs["contract_status"] = sub.get("status")
+
         if self.entity_description.key.endswith("_ytd"):
             consumptions = sub.get("consumptions") or {}
             attrs["latest_date"] = consumptions.get("latest_date")
-            attrs["pod"] = sub.get("pod")
 
         if "monthly_rate" in self.entity_description.key:
             contract = sub.get("contract", {})

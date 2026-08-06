@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import NenApiClient, NenApiError, NenAuthError
 from .const import DOMAIN, SCAN_INTERVAL_HOURS
+from .models import iter_subscriptions, legacy_subscription_ids
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,22 +49,29 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:  # noqa: BLE001
             _LOGGER.warning("Could not fetch profile details for opportunity codes")
 
-        home = home_contexts[0]
         result: dict[str, Any] = {
-            "home": {
-                "id": home.get("id"),
-                "name": home.get("name"),
-                "address": home.get("address"),
-            },
+            "homes": {},
             "subscriptions": {},
+            "legacy_subscription_ids": legacy_subscription_ids(home_contexts),
         }
 
-        for sub in home.get("subscriptions", []):
+        for home, sub in iter_subscriptions(home_contexts):
             utility = sub.get("utility")  # "EE" or "GA"
             if not utility:
                 continue
 
+            home_id = home.get("id")
+            if home_id:
+                result["homes"][home_id] = {
+                    "id": home_id,
+                    "name": home.get("name"),
+                    "address": home.get("address") or home.get("fullAddress"),
+                    "is_default": home.get("isDefault", False),
+                }
+
             sub_id = sub.get("id")
+            if not sub_id:
+                continue
             pod = sub.get("podName")
             opp_code = opp_codes.get(sub_id, "")
 
@@ -72,6 +80,10 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             entry: dict[str, Any] = {
                 "id": sub_id,
+                "home_id": home_id,
+                "home_name": home.get("name"),
+                "home_address": home.get("address") or home.get("fullAddress"),
+                "home_is_default": home.get("isDefault", False),
                 "pod": pod,
                 "status": sub.get("status"),
                 "utility": utility,
@@ -105,7 +117,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 except NenApiError:
                     _LOGGER.warning("Could not fetch consumptions for %s supply %s", utility, supply_id)
 
-            result["subscriptions"][utility] = entry
+            result["subscriptions"][sub_id] = entry
 
         # Invoices for current and previous month
         pods = [

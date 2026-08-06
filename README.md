@@ -47,7 +47,7 @@ This integration polls NeN's API every 6 hours and exposes sensors for electrici
 1. Navigate to Settings → Devices & Services → Integrations
 2. Click **Create Integration** and search for "NeN Energy"
 3. Enter your NeN account email and password
-4. Sensors will be created for each contract/pod in your account
+4. A separate device and sensor set will be created for each contract/POD in your account
 
 ## Energy Dashboard Integration
 
