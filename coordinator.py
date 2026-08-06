@@ -114,7 +114,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if s.get("pod")
         ]
         if pods:
-            now = datetime.now()
+            now = datetime.now().astimezone()
             invoices: list[dict] = []
             for month_offset in range(3):
                 dt = now.replace(day=1) - timedelta(days=30 * month_offset)
