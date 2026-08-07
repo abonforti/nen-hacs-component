@@ -11,9 +11,7 @@ def preferred_subscriptions(home_contexts: list[dict]) -> list[tuple[dict, dict]
     """Return active subscriptions, falling back to all when none are active."""
     subscriptions = iter_subscriptions(home_contexts)
     active = [
-        (home, sub)
-        for home, sub in subscriptions
-        if sub.get("status") == "ACTIVE"
+        (home, sub) for home, sub in subscriptions if sub.get("status") == "ACTIVE"
     ]
     return active or subscriptions
 
