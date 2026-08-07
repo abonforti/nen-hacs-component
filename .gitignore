@@ -21,3 +21,7 @@ ENV/
 .idea/
 .vscode/
 *.swp
+
+# Local agent tooling state
+.claude/
+CLAUDE.local.md
