@@ -4,6 +4,7 @@ from models import (
     iter_subscriptions,
     latest_bills_by_utility,
     legacy_subscription_ids,
+    preferred_subscriptions,
     subscription_identity,
 )
 
@@ -60,7 +61,52 @@ class SubscriptionModelTest(unittest.TestCase):
             ["old-electricity", "new-electricity", "new-gas"],
         )
         self.assertEqual(
-            legacy_subscription_ids(homes), {"EE": "old-electricity"}
+            legacy_subscription_ids(homes), {"EE": "new-electricity", "GA": "new-gas"}
+        )
+
+    def test_active_subscriptions_exclude_closed_contracts(self) -> None:
+        homes = [
+            {
+                "id": "old-home",
+                "subscriptions": [
+                    {"id": "old-electricity", "utility": "EE", "status": "CLOSED"}
+                ],
+            },
+            {
+                "id": "current-home",
+                "subscriptions": [
+                    {"id": "current-electricity", "utility": "EE", "status": "ACTIVE"},
+                    {"id": "old-gas", "utility": "GA", "status": "CLOSED"},
+                    {"id": "current-gas", "utility": "GA", "status": "ACTIVE"},
+                ],
+            },
+        ]
+
+        subscriptions = preferred_subscriptions(homes)
+
+        self.assertEqual(
+            [sub["id"] for _, sub in subscriptions],
+            ["current-electricity", "current-gas"],
+        )
+        self.assertEqual(
+            legacy_subscription_ids(homes),
+            {"EE": "current-electricity", "GA": "current-gas"},
+        )
+
+    def test_subscriptions_fall_back_when_none_are_active(self) -> None:
+        homes = [
+            {
+                "id": "home",
+                "subscriptions": [
+                    {"id": "electricity", "utility": "EE", "status": "CLOSED"},
+                    {"id": "gas", "utility": "GA"},
+                ],
+            }
+        ]
+
+        self.assertEqual(
+            preferred_subscriptions(homes),
+            iter_subscriptions(homes),
         )
 
     def test_legacy_selection_matches_previous_last_utility_wins_behavior(self) -> None:
