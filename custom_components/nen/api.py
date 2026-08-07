@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -29,7 +29,7 @@ class NenApiClient:
         if (
             self._id_token
             and self._token_expiry
-            and datetime.now(timezone.utc) < self._token_expiry
+            and datetime.now(UTC) < self._token_expiry
         ):
             return
         try:
@@ -44,7 +44,7 @@ class NenApiClient:
         u.authenticate(password=self._password)
         self._id_token = u.id_token
         # Conservative expiry: refresh 5 min before actual expiry
-        self._token_expiry = datetime.now(timezone.utc) + timedelta(seconds=3300)
+        self._token_expiry = datetime.now(UTC) + timedelta(seconds=3300)
 
     async def _request(self, path: str, *, raw_auth: bool = False, params: dict | None = None) -> Any:
         await self._ensure_token()
