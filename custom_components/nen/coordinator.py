@@ -96,6 +96,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # supplyId is already present in home-contexts subscriptions
             supply_id = sub.get("supplyId")
+            home_bills = bills_by_home.get(home_id, {}) if home_id else {}
 
             entry: dict[str, Any] = {
                 "id": sub_id,
@@ -111,7 +112,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "tariff_name": sub.get("contractInformation", {}).get("name"),
                 "contract": {},
                 "consumptions": None,
-                "last_bill": _parse_bill(bills_by_home.get(home_id, {}).get(utility)),
+                "last_bill": _parse_bill(home_bills.get(utility)),
             }
 
             # Contract details (monthly rate, renewal date)
