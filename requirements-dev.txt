@@ -1,5 +1,8 @@
 ruff
 pytest
 pytest-asyncio
+pytest-cov
+mypy
+pre-commit
 homeassistant
 pycognito>=2024.5.1
