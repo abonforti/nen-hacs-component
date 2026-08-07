@@ -1,6 +1,11 @@
 import unittest
 
-from models import iter_subscriptions, legacy_subscription_ids, subscription_identity
+from models import (
+    iter_subscriptions,
+    latest_bills_by_utility,
+    legacy_subscription_ids,
+    subscription_identity,
+)
 
 
 class SubscriptionModelTest(unittest.TestCase):
@@ -82,6 +87,23 @@ class SubscriptionModelTest(unittest.TestCase):
         self.assertEqual(
             subscription_identity("entry", "EE", "electricity-2", legacy_ids),
             ("entry_electricity-2", "electricity-2"),
+        )
+
+    def test_latest_bill_is_selected_per_utility(self) -> None:
+        newest_electricity = {"utility": "EE", "number": "new-ee"}
+        invoices = [
+            newest_electricity,
+            {"utility": "GA", "number": "new-ga"},
+            {"utility": "EE", "number": "old-ee"},
+            {"number": "missing-utility"},
+        ]
+
+        self.assertEqual(
+            latest_bills_by_utility(invoices),
+            {
+                "EE": newest_electricity,
+                "GA": {"utility": "GA", "number": "new-ga"},
+            },
         )
 
 

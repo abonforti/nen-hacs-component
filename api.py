@@ -38,7 +38,7 @@ class NenApiClient:
             raise NenAuthError(f"Authentication failed: {err}") from err
 
     def _authenticate_sync(self) -> None:
-        from pycognito import Cognito  # noqa: PLC0415
+        from pycognito import Cognito
 
         u = Cognito(COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID, username=self._username)
         u.authenticate(password=self._password)
@@ -109,4 +109,19 @@ class NenApiClient:
         return await self._request(
             "/invoices",
             params={"month": f"{month:02d}", "year": str(year), "pods": ",".join(pods)},
+        )
+
+    async def get_bill_details(self, home_context_id: str) -> dict:
+        """Fetch billing history for a home context.
+
+        This is what the current nen.it frontend actually calls for the
+        "la tua rata" screen (`GET /bills/details/{homeContextId}`) — as
+        observed live it returns richer per-invoice data (emissionDate,
+        chargeDate, status, amount) than get_invoices() above, which no
+        longer appeared in a fresh capture of the site's network traffic
+        and may be stale against the current backend.
+        """
+        return await self._request(
+            f"/bills/details/{home_context_id}",
+            raw_auth=True,
         )

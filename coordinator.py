@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -9,7 +9,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import NenApiClient, NenApiError, NenAuthError
 from .const import DOMAIN, SCAN_INTERVAL_HOURS
-from .models import iter_subscriptions, legacy_subscription_ids
+from .models import (
+    iter_subscriptions,
+    latest_bills_by_utility,
+    legacy_subscription_ids,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +59,21 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "legacy_subscription_ids": legacy_subscription_ids(home_contexts),
         }
 
+        # Bill details are scoped by home context. Keep each home's utility
+        # invoices separate so properties cannot receive each other's bill.
+        bills_by_home: dict[str, dict[str, dict]] = {}
+        for home in home_contexts:
+            home_id = home.get("id")
+            if not home_id:
+                continue
+            try:
+                bills_data = await self.client.get_bill_details(home_id)
+                bills_by_home[home_id] = latest_bills_by_utility(
+                    bills_data.get("invoices", [])
+                )
+            except NenApiError:
+                _LOGGER.warning("Could not fetch bill details for home %s", home_id)
+
         for home, sub in iter_subscriptions(home_contexts):
             utility = sub.get("utility")  # "EE" or "GA"
             if not utility:
@@ -92,6 +111,9 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "tariff_name": sub.get("contractInformation", {}).get("name"),
                 "contract": {},
                 "consumptions": None,
+                "last_bill": _parse_bill(
+                    bills_by_home.get(home_id, {}).get(utility)
+                ),
             }
 
             # Contract details (monthly rate, renewal date)
@@ -120,13 +142,19 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             result["subscriptions"][sub_id] = entry
 
         # Invoices for current and previous month
+        # NOTE: kept for backwards compatibility, but a live capture of
+        # nen.it's own network traffic (2026-07) no longer showed any call to
+        # this endpoint — the frontend now uses get_bill_details() above
+        # instead. This may be stale/deprecated; left in place rather than
+        # removed since it's not causing failures (NenApiError is caught) and
+        # someone's account/tariff might still depend on it.
         pods = [
             s.get("pod")
             for s in result["subscriptions"].values()
             if s.get("pod")
         ]
         if pods:
-            now = datetime.now()
+            now = datetime.now().astimezone()
             invoices: list[dict] = []
             for month_offset in range(3):
                 dt = now.replace(day=1) - timedelta(days=30 * month_offset)
@@ -143,8 +171,8 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 def _parse_contract(data: dict) -> dict:
     return {
         "monthly_rate": _safe_float(data.get("subscriptionPrice")),
-        "end_date": data.get("renewalDate"),
-        "recalculation_date": data.get("recalculationDate"),
+        "end_date": _parse_date(data.get("renewalDate")),
+        "recalculation_date": _parse_date(data.get("recalculationDate")),
         "offer_type": data.get("offerType"),
     }
 
@@ -158,10 +186,24 @@ def _parse_detail(data: dict) -> dict:
     }
 
 
+def _parse_bill(invoice: dict | None) -> dict:
+    if not invoice:
+        return {}
+    return {
+        "amount": _safe_float(invoice.get("amount")),
+        "emission_date": _parse_date(invoice.get("emissionDate")),
+        "charge_date": _parse_date(invoice.get("chargeDate")),
+        "status": invoice.get("status"),
+        "number": invoice.get("number"),
+        "residual": _safe_float(invoice.get("residual")),
+    }
+
+
 def _parse_consumptions(data: dict) -> dict:
     ac = data.get("annualConsumptions", {})
     ytd = _safe_float(ac.get("totalConsumption"))
     cap = _safe_float(ac.get("maxConsumption"))
+    cap_usage_percentage = round((ytd / cap) * 100, 1) if ytd is not None and cap else None
 
     # Daily 2G smart meter readings: consumptions.g2.data[].{period, value, isMissing}
     daily: list[dict] = data.get("consumptions", {}).get("g2", {}).get("data", [])
@@ -189,10 +231,30 @@ def _parse_consumptions(data: dict) -> dict:
     return {
         "ytd": ytd,
         "cap": cap,
+        "cap_usage_percentage": cap_usage_percentage,
+        # NeN's own pacing indicator (projected vs actual trajectory toward
+        # the annual cap). Meaning isn't documented anywhere; exposed as-is
+        # as an attribute rather than a standalone sensor for that reason.
+        "delta_percentage": _safe_float(ac.get("deltaPercentage")),
         "daily": daily,
         "latest_value": latest_value,
         "latest_date": latest_date,
     }
+
+
+def _parse_date(value: str | None) -> date | None:
+    """Parse an ISO 'YYYY-MM-DD' string into a date object.
+
+    Required for anything fed into a SensorDeviceClass.DATE sensor's
+    native_value - Home Assistant expects an actual date object there, not a
+    string, and silently marks the entity unavailable otherwise.
+    """
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _safe_float(value: Any) -> float | None:

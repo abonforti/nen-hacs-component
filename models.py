@@ -33,3 +33,13 @@ def subscription_identity(
     if legacy_ids.get(utility) == subscription_id:
         return entry_id, utility
     return f"{entry_id}_{subscription_id}", subscription_id
+
+
+def latest_bills_by_utility(invoices: list[dict]) -> dict[str, dict]:
+    """Return the first, newest invoice for each utility."""
+    latest: dict[str, dict] = {}
+    for invoice in invoices:
+        utility = invoice.get("utility")
+        if utility and utility not in latest:
+            latest[utility] = invoice
+    return latest
