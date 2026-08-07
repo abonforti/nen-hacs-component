@@ -34,12 +34,12 @@ This integration polls NeN's API every 6 hours and exposes sensors for electrici
 
 ### HACS (Recommended)
 
-1. Open Home Assistant → Settings → Integrations
-2. Click **Create Automation** → select **HACS**
-3. In the HACS panel, click **⋯** → **Custom repositories**
-4. Add repository URL: `https://github.com/abonforti/nen-hacs-component`
-5. Select **Integration** and click **Create**
-6. Search for "NeN Energy" and install
+1. Open the **HACS** panel in Home Assistant
+2. Click the **⋮** menu (top right) → **Custom repositories**
+3. Add repository URL: `https://github.com/abonforti/nen-hacs-component`
+4. Select type **Integration** and click **Add**
+5. Search HACS for "NeN Energy", open it and click **Download**
+6. Restart Home Assistant
 
 ### Manual
 
@@ -50,7 +50,7 @@ This integration polls NeN's API every 6 hours and exposes sensors for electrici
 ## Configuration
 
 1. Navigate to Settings → Devices & Services → Integrations
-2. Click **Create Integration** and search for "NeN Energy"
+2. Click **+ Add Integration** and search for "NeN Energy"
 3. Enter your NeN account email and password
 4. A separate device and sensor set will be created for each contract/POD in your account
 
