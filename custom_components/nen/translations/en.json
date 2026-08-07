@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "NeN Energy",
+        "description": "Enter your NeN account credentials.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Cannot connect to NeN API."
+    },
+    "abort": {
+      "already_configured": "Account already configured."
+    }
+  }
+}
