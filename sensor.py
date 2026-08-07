@@ -49,6 +49,15 @@ ELECTRICITY_SENSORS: tuple[NenSensorDescription, ...] = (
         value_fn=lambda sub: (sub.get("consumptions") or {}).get("cap"),
     ),
     NenSensorDescription(
+        key="ee_consumption_cap_usage",
+        name="Annual Cap Usage",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="%",
+        suggested_display_precision=1,
+        utility="EE",
+        value_fn=lambda sub: (sub.get("consumptions") or {}).get("cap_usage_percentage"),
+    ),
+    NenSensorDescription(
         key="ee_consumption_latest",
         name="Last Day Consumption",
         device_class=SensorDeviceClass.ENERGY,
@@ -75,6 +84,26 @@ ELECTRICITY_SENSORS: tuple[NenSensorDescription, ...] = (
         suggested_display_precision=4,
         utility="EE",
         value_fn=lambda sub: sub.get("detail", {}).get("unit_price"),
+    ),
+    NenSensorDescription(
+        key="ee_last_bill_date",
+        name="Last Bill Date",
+        device_class=SensorDeviceClass.DATE,
+        utility="EE",
+        value_fn=lambda sub: sub.get("last_bill", {}).get("emission_date"),
+    ),
+    NenSensorDescription(
+        key="ee_last_bill_charge_date",
+        name="Last Bill Charge Date",
+        device_class=SensorDeviceClass.DATE,
+        utility="EE",
+        value_fn=lambda sub: sub.get("last_bill", {}).get("charge_date"),
+    ),
+    NenSensorDescription(
+        key="ee_last_bill_status",
+        name="Last Bill Status",
+        utility="EE",
+        value_fn=lambda sub: sub.get("last_bill", {}).get("status"),
     ),
 )
 
@@ -116,6 +145,26 @@ GAS_SENSORS: tuple[NenSensorDescription, ...] = (
         suggested_display_precision=4,
         utility="GA",
         value_fn=lambda sub: sub.get("detail", {}).get("unit_price"),
+    ),
+    NenSensorDescription(
+        key="ga_last_bill_date",
+        name="Last Bill Date",
+        device_class=SensorDeviceClass.DATE,
+        utility="GA",
+        value_fn=lambda sub: sub.get("last_bill", {}).get("emission_date"),
+    ),
+    NenSensorDescription(
+        key="ga_last_bill_charge_date",
+        name="Last Bill Charge Date",
+        device_class=SensorDeviceClass.DATE,
+        utility="GA",
+        value_fn=lambda sub: sub.get("last_bill", {}).get("charge_date"),
+    ),
+    NenSensorDescription(
+        key="ga_last_bill_status",
+        name="Last Bill Status",
+        utility="GA",
+        value_fn=lambda sub: sub.get("last_bill", {}).get("status"),
     ),
 )
 
@@ -179,10 +228,20 @@ class NenSensor(CoordinatorEntity[NenDataCoordinator], SensorEntity):
             attrs["latest_date"] = consumptions.get("latest_date")
             attrs["pod"] = sub.get("pod")
 
+        if self.entity_description.key.endswith("_cap_usage"):
+            consumptions = sub.get("consumptions") or {}
+            attrs["delta_percentage"] = consumptions.get("delta_percentage")
+
         if "monthly_rate" in self.entity_description.key:
             contract = sub.get("contract", {})
             attrs["contract_end_date"] = contract.get("end_date")
             attrs["contract_start_date"] = contract.get("start_date")
             attrs["contract_name"] = contract.get("name")
+
+        if "last_bill" in self.entity_description.key:
+            last_bill = sub.get("last_bill") or {}
+            attrs["amount"] = last_bill.get("amount")
+            attrs["number"] = last_bill.get("number")
+            attrs["residual"] = last_bill.get("residual")
 
         return {k: v for k, v in attrs.items() if v is not None}
