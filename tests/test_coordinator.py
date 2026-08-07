@@ -59,9 +59,7 @@ class SubscriptionModelTest(unittest.TestCase):
             [sub["id"] for _, sub in subscriptions],
             ["old-electricity", "new-electricity", "new-gas"],
         )
-        self.assertEqual(
-            legacy_subscription_ids(homes), {"EE": "old-electricity"}
-        )
+        self.assertEqual(legacy_subscription_ids(homes), {"EE": "old-electricity"})
 
     def test_legacy_selection_matches_previous_last_utility_wins_behavior(self) -> None:
         homes = [
@@ -73,9 +71,7 @@ class SubscriptionModelTest(unittest.TestCase):
             }
         ]
 
-        self.assertEqual(
-            legacy_subscription_ids(homes), {"EE": "electricity-2"}
-        )
+        self.assertEqual(legacy_subscription_ids(homes), {"EE": "electricity-2"})
 
     def test_subscription_identities_do_not_collide(self) -> None:
         legacy_ids = {"EE": "electricity-1"}

@@ -3,9 +3,7 @@ from __future__ import annotations
 
 def iter_subscriptions(home_contexts: list[dict]) -> list[tuple[dict, dict]]:
     return [
-        (home, sub)
-        for home in home_contexts
-        for sub in home.get("subscriptions", [])
+        (home, sub) for home in home_contexts for sub in home.get("subscriptions", [])
     ]
 
 

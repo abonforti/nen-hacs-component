@@ -56,7 +56,9 @@ ELECTRICITY_SENSORS: tuple[NenSensorDescription, ...] = (
         native_unit_of_measurement="%",
         suggested_display_precision=1,
         utility="EE",
-        value_fn=lambda sub: (sub.get("consumptions") or {}).get("cap_usage_percentage"),
+        value_fn=lambda sub: (sub.get("consumptions") or {}).get(
+            "cap_usage_percentage"
+        ),
     ),
     NenSensorDescription(
         key="ee_consumption_latest",
@@ -185,9 +187,7 @@ async def async_setup_entry(
             "GA": GAS_SENSORS,
         }.get(sub.get("utility"), ())
         for desc in descriptions:
-            entities.append(
-                NenSensor(coordinator, entry, desc, subscription_id)
-            )
+            entities.append(NenSensor(coordinator, entry, desc, subscription_id))
 
     async_add_entities(entities)
 
@@ -220,13 +220,17 @@ class NenSensor(CoordinatorEntity[NenDataCoordinator], SensorEntity):
         sub = coordinator.data["subscriptions"][subscription_id]
         location = sub.get("home_name") or sub.get("home_address") or sub.get("pod")
         device_name = f"NeN {utility_label}"
-        if len(
-            [
-                item
-                for item in coordinator.data["subscriptions"].values()
-                if item.get("utility") == description.utility
-            ]
-        ) > 1 and location:
+        if (
+            len(
+                [
+                    item
+                    for item in coordinator.data["subscriptions"].values()
+                    if item.get("utility") == description.utility
+                ]
+            )
+            > 1
+            and location
+        ):
             device_name = f"{device_name} - {location}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry.entry_id}_{device_suffix}")},

@@ -18,7 +18,9 @@ class NenApiError(Exception):
 
 
 class NenApiClient:
-    def __init__(self, username: str, password: str, session: aiohttp.ClientSession) -> None:
+    def __init__(
+        self, username: str, password: str, session: aiohttp.ClientSession
+    ) -> None:
         self._username = username
         self._password = password
         self._session = session
@@ -33,7 +35,9 @@ class NenApiClient:
         ):
             return
         try:
-            await asyncio.get_event_loop().run_in_executor(None, self._authenticate_sync)
+            await asyncio.get_event_loop().run_in_executor(
+                None, self._authenticate_sync
+            )
         except Exception as err:
             raise NenAuthError(f"Authentication failed: {err}") from err
 
@@ -46,7 +50,9 @@ class NenApiClient:
         # Conservative expiry: refresh 5 min before actual expiry
         self._token_expiry = datetime.now(UTC) + timedelta(seconds=3300)
 
-    async def _request(self, path: str, *, raw_auth: bool = False, params: dict | None = None) -> Any:
+    async def _request(
+        self, path: str, *, raw_auth: bool = False, params: dict | None = None
+    ) -> Any:
         await self._ensure_token()
         auth_value = self._id_token if raw_auth else f"Bearer {self._id_token}"
         headers = {
@@ -64,7 +70,9 @@ class NenApiClient:
                 await self._ensure_token()
                 auth_value = self._id_token if raw_auth else f"Bearer {self._id_token}"
                 headers["Authorization"] = auth_value
-                async with self._session.get(url, headers=headers, params=params) as retry:
+                async with self._session.get(
+                    url, headers=headers, params=params
+                ) as retry:
                     if not retry.ok:
                         raise NenApiError(f"API error {retry.status} on {path}")
                     return await retry.json()

@@ -111,9 +111,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "tariff_name": sub.get("contractInformation", {}).get("name"),
                 "contract": {},
                 "consumptions": None,
-                "last_bill": _parse_bill(
-                    bills_by_home.get(home_id, {}).get(utility)
-                ),
+                "last_bill": _parse_bill(bills_by_home.get(home_id, {}).get(utility)),
             }
 
             # Contract details (monthly rate, renewal date)
@@ -125,7 +123,9 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Subscription detail (pricing)
             try:
-                detail_data = await self.client.get_subscription_detail(opp_code, sub_id)
+                detail_data = await self.client.get_subscription_detail(
+                    opp_code, sub_id
+                )
                 entry["detail"] = _parse_detail(detail_data)
             except NenApiError:
                 _LOGGER.debug("Could not fetch subscription detail for %s", sub_id)
@@ -134,10 +134,16 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Consumptions
             if supply_id:
                 try:
-                    consumptions_raw = await self.client.get_global_consumptions(supply_id)
+                    consumptions_raw = await self.client.get_global_consumptions(
+                        supply_id
+                    )
                     entry["consumptions"] = _parse_consumptions(consumptions_raw)
                 except NenApiError:
-                    _LOGGER.warning("Could not fetch consumptions for %s supply %s", utility, supply_id)
+                    _LOGGER.warning(
+                        "Could not fetch consumptions for %s supply %s",
+                        utility,
+                        supply_id,
+                    )
 
             result["subscriptions"][sub_id] = entry
 
@@ -148,11 +154,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # instead. This may be stale/deprecated; left in place rather than
         # removed since it's not causing failures (NenApiError is caught) and
         # someone's account/tariff might still depend on it.
-        pods = [
-            s.get("pod")
-            for s in result["subscriptions"].values()
-            if s.get("pod")
-        ]
+        pods = [s.get("pod") for s in result["subscriptions"].values() if s.get("pod")]
         if pods:
             now = datetime.now().astimezone()
             invoices: list[dict] = []
@@ -203,7 +205,9 @@ def _parse_consumptions(data: dict) -> dict:
     ac = data.get("annualConsumptions", {})
     ytd = _safe_float(ac.get("totalConsumption"))
     cap = _safe_float(ac.get("maxConsumption"))
-    cap_usage_percentage = round((ytd / cap) * 100, 1) if ytd is not None and cap else None
+    cap_usage_percentage = (
+        round((ytd / cap) * 100, 1) if ytd is not None and cap else None
+    )
 
     # Daily 2G smart meter readings: consumptions.g2.data[].{period, value, isMissing}
     daily: list[dict] = data.get("consumptions", {}).get("g2", {}).get("data", [])
@@ -222,7 +226,9 @@ def _parse_consumptions(data: dict) -> dict:
     if latest_value is None:
         past_months: list[dict] = data.get("consumptions", {}).get("pastMonths", [])
         for month in reversed(past_months):
-            v = _safe_float(month.get("realConsumption") or month.get("estimatedConsumption"))
+            v = _safe_float(
+                month.get("realConsumption") or month.get("estimatedConsumption")
+            )
             if v is not None and v > 0:
                 latest_value = v
                 latest_date = month.get("period")
