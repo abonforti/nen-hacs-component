@@ -1,3 +1,23 @@
+# Byte-compiled / optimized files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Testing and linting caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# IDE & OS
 .DS_Store
+.idea/
+.vscode/
+*.swp

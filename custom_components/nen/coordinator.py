@@ -9,6 +9,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import NenApiClient, NenApiError, NenAuthError
 from .const import DOMAIN, SCAN_INTERVAL_HOURS
+from .models import (
+    iter_subscriptions,
+    latest_bills_by_utility,
+    legacy_subscription_ids,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,48 +53,57 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:  # noqa: BLE001
             _LOGGER.warning("Could not fetch profile details for opportunity codes")
 
-        home = home_contexts[0]
-        home_id = home.get("id")
         result: dict[str, Any] = {
-            "home": {
-                "id": home_id,
-                "name": home.get("name"),
-                "address": home.get("address"),
-            },
+            "homes": {},
             "subscriptions": {},
+            "legacy_subscription_ids": legacy_subscription_ids(home_contexts),
         }
 
-        # Latest bill per utility, keyed off the home context rather than the
-        # subscription: /bills/details/{homeContextId} returns every invoice
-        # for the home in one call, each tagged with its own "utility".
-        bills_by_utility: dict[str, dict] = {}
-        if home_id:
+        # Bill details are scoped by home context. Keep each home's utility
+        # invoices separate so properties cannot receive each other's bill.
+        bills_by_home: dict[str, dict[str, dict]] = {}
+        for home in home_contexts:
+            home_id = home.get("id")
+            if not home_id:
+                continue
             try:
                 bills_data = await self.client.get_bill_details(home_id)
-                for inv in bills_data.get("invoices", []):
-                    utility = inv.get("utility")
-                    if not utility:
-                        continue
-                    # API returns newest-first; keep only the first (latest) per utility.
-                    if utility not in bills_by_utility:
-                        bills_by_utility[utility] = inv
+                bills_by_home[home_id] = latest_bills_by_utility(
+                    bills_data.get("invoices", [])
+                )
             except NenApiError:
                 _LOGGER.warning("Could not fetch bill details for home %s", home_id)
 
-        for sub in home.get("subscriptions", []):
+        for home, sub in iter_subscriptions(home_contexts):
             utility = sub.get("utility")  # "EE" or "GA"
             if not utility:
                 continue
 
+            home_id = home.get("id")
+            if home_id:
+                result["homes"][home_id] = {
+                    "id": home_id,
+                    "name": home.get("name"),
+                    "address": home.get("address") or home.get("fullAddress"),
+                    "is_default": home.get("isDefault", False),
+                }
+
             sub_id = sub.get("id")
+            if not sub_id:
+                continue
             pod = sub.get("podName")
             opp_code = opp_codes.get(sub_id, "")
 
             # supplyId is already present in home-contexts subscriptions
             supply_id = sub.get("supplyId")
+            home_bills = bills_by_home.get(home_id, {}) if home_id else {}
 
             entry: dict[str, Any] = {
                 "id": sub_id,
+                "home_id": home_id,
+                "home_name": home.get("name"),
+                "home_address": home.get("address") or home.get("fullAddress"),
+                "home_is_default": home.get("isDefault", False),
                 "pod": pod,
                 "status": sub.get("status"),
                 "utility": utility,
@@ -98,7 +112,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "tariff_name": sub.get("contractInformation", {}).get("name"),
                 "contract": {},
                 "consumptions": None,
-                "last_bill": _parse_bill(bills_by_utility.get(utility)),
+                "last_bill": _parse_bill(home_bills.get(utility)),
             }
 
             # Contract details (monthly rate, renewal date)
@@ -110,7 +124,9 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Subscription detail (pricing)
             try:
-                detail_data = await self.client.get_subscription_detail(opp_code, sub_id)
+                detail_data = await self.client.get_subscription_detail(
+                    opp_code, sub_id
+                )
                 entry["detail"] = _parse_detail(detail_data)
             except NenApiError:
                 _LOGGER.debug("Could not fetch subscription detail for %s", sub_id)
@@ -119,12 +135,18 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Consumptions
             if supply_id:
                 try:
-                    consumptions_raw = await self.client.get_global_consumptions(supply_id)
+                    consumptions_raw = await self.client.get_global_consumptions(
+                        supply_id
+                    )
                     entry["consumptions"] = _parse_consumptions(consumptions_raw)
                 except NenApiError:
-                    _LOGGER.warning("Could not fetch consumptions for %s supply %s", utility, supply_id)
+                    _LOGGER.warning(
+                        "Could not fetch consumptions for %s supply %s",
+                        utility,
+                        supply_id,
+                    )
 
-            result["subscriptions"][utility] = entry
+            result["subscriptions"][sub_id] = entry
 
         # Invoices for current and previous month
         # NOTE: kept for backwards compatibility, but a live capture of
@@ -133,11 +155,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # instead. This may be stale/deprecated; left in place rather than
         # removed since it's not causing failures (NenApiError is caught) and
         # someone's account/tariff might still depend on it.
-        pods = [
-            s.get("pod")
-            for s in result["subscriptions"].values()
-            if s.get("pod")
-        ]
+        pods = [s.get("pod") for s in result["subscriptions"].values() if s.get("pod")]
         if pods:
             now = datetime.now().astimezone()
             invoices: list[dict] = []
@@ -188,7 +206,9 @@ def _parse_consumptions(data: dict) -> dict:
     ac = data.get("annualConsumptions", {})
     ytd = _safe_float(ac.get("totalConsumption"))
     cap = _safe_float(ac.get("maxConsumption"))
-    cap_usage_percentage = round((ytd / cap) * 100, 1) if ytd is not None and cap else None
+    cap_usage_percentage = (
+        round((ytd / cap) * 100, 1) if ytd is not None and cap else None
+    )
 
     # Daily 2G smart meter readings: consumptions.g2.data[].{period, value, isMissing}
     daily: list[dict] = data.get("consumptions", {}).get("g2", {}).get("data", [])
@@ -207,7 +227,9 @@ def _parse_consumptions(data: dict) -> dict:
     if latest_value is None:
         past_months: list[dict] = data.get("consumptions", {}).get("pastMonths", [])
         for month in reversed(past_months):
-            v = _safe_float(month.get("realConsumption") or month.get("estimatedConsumption"))
+            v = _safe_float(
+                month.get("realConsumption") or month.get("estimatedConsumption")
+            )
             if v is not None and v > 0:
                 latest_value = v
                 latest_date = month.get("period")

@@ -13,7 +13,7 @@ pip install -r requirements-dev.txt
 Symlink the component into a local HA dev instance:
 
 ```bash
-ln -s $(pwd) /path/to/ha/config/custom_components/nen
+ln -s $(pwd)/custom_components/nen /path/to/ha/config/custom_components/nen
 ```
 
 Then restart HA and add the integration via the UI.
