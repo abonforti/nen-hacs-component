@@ -27,8 +27,21 @@ pytest tests/ -v
 ## Code style
 
 - Follow [HA integration development guidelines](https://developers.home-assistant.io/docs/creating_integration_manifest)
-- Run `ruff check .` before submitting
 - No new dependencies without discussion
+
+CI enforces all three of the following, so run them before submitting:
+
+```bash
+ruff check .
+ruff format --check .
+mypy custom_components/nen
+```
+
+Installing the hooks runs the ruff steps automatically on every commit:
+
+```bash
+pre-commit install
+```
 
 ## Pull requests
 
