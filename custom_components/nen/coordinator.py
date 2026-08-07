@@ -10,9 +10,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import NenApiClient, NenApiError, NenAuthError
 from .const import DOMAIN, SCAN_INTERVAL_HOURS
 from .models import (
-    iter_subscriptions,
     latest_bills_by_utility,
     legacy_subscription_ids,
+    preferred_subscriptions,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except NenApiError:
                 _LOGGER.warning("Could not fetch bill details for home %s", home_id)
 
-        for home, sub in iter_subscriptions(home_contexts):
+        for home, sub in preferred_subscriptions(home_contexts):
             utility = sub.get("utility")  # "EE" or "GA"
             if not utility:
                 continue
