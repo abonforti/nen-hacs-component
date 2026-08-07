@@ -34,7 +34,7 @@ select = [
     "UP",    # pyupgrade
     "ASYNC", # flake8-async
 ]
-ignore = []
+ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["custom_components.nen"]
