@@ -27,19 +27,23 @@ class NenApiClient:
         self._id_token: str | None = None
         self._token_expiry: datetime | None = None
 
-    async def _ensure_token(self) -> None:
+    async def _ensure_token(self) -> str:
+        """Return a valid ID token, authenticating first when needed."""
         if (
             self._id_token
             and self._token_expiry
             and datetime.now(UTC) < self._token_expiry
         ):
-            return
+            return self._id_token
         try:
             await asyncio.get_event_loop().run_in_executor(
                 None, self._authenticate_sync
             )
         except Exception as err:
             raise NenAuthError(f"Authentication failed: {err}") from err
+        if self._id_token is None:
+            raise NenAuthError("Authentication succeeded but returned no token")
+        return self._id_token
 
     def _authenticate_sync(self) -> None:
         from pycognito import Cognito
@@ -53,8 +57,8 @@ class NenApiClient:
     async def _request(
         self, path: str, *, raw_auth: bool = False, params: dict | None = None
     ) -> Any:
-        await self._ensure_token()
-        auth_value = self._id_token if raw_auth else f"Bearer {self._id_token}"
+        token = await self._ensure_token()
+        auth_value = token if raw_auth else f"Bearer {token}"
         headers = {
             "Authorization": auth_value,
             "Content-Type": "application/json",
@@ -67,9 +71,8 @@ class NenApiClient:
             if resp.status == 401:
                 # Token may have expired — force re-auth once
                 self._id_token = None
-                await self._ensure_token()
-                auth_value = self._id_token if raw_auth else f"Bearer {self._id_token}"
-                headers["Authorization"] = auth_value
+                token = await self._ensure_token()
+                headers["Authorization"] = token if raw_auth else f"Bearer {token}"
                 async with self._session.get(
                     url, headers=headers, params=params
                 ) as retry:
