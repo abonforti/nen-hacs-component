@@ -52,7 +52,7 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
-# Set just below the level reached when coordinator.py was brought under test.
-# api.py, config_flow.py and sensor.py are still uncovered; raise this as they
-# gain tests rather than treating it as a target already met.
-fail_under = 50
+# Every module is covered; actual coverage sits just under 100%. The floor is
+# set below that on purpose, so a genuinely unreachable branch does not have to
+# be chased, but any real regression fails the build.
+fail_under = 95

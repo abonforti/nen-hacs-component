@@ -5,11 +5,12 @@ the data-shaping logic can be exercised in isolation.
 """
 
 import unittest
-from unittest.mock import MagicMock
+from datetime import timedelta
+from unittest.mock import MagicMock, patch
 
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from custom_components.nen.api import NenApiError
+from custom_components.nen.api import NenApiError, NenAuthError
 from custom_components.nen.coordinator import NenDataCoordinator
 
 CLOSED_HOME = {
@@ -200,6 +201,38 @@ class FetchAllTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(entry["last_bill"], {})
         self.assertIsNone(entry["consumptions"])
 
+    async def test_a_home_without_an_id_is_handled(self) -> None:
+        """No id means no bill lookup, and no entry in `homes`."""
+        home = {
+            "name": "Nameless",
+            "subscriptions": [{"id": "ee-z", "utility": "EE", "status": "ACTIVE"}],
+        }
+        client = FakeClient([home])
+
+        result = await make_coordinator(client)._fetch_all()
+
+        self.assertEqual(client.bill_calls, [])
+        self.assertEqual(result["homes"], {})
+        self.assertIn("ee-z", result["subscriptions"])
+        self.assertIsNone(result["subscriptions"]["ee-z"]["home_id"])
+
+    async def test_profile_entries_without_a_code_are_skipped(self) -> None:
+        class PartialProfileClient(FakeClient):
+            async def get_profile_details(self):
+                return {
+                    "subscriptions": [
+                        {"id": "ee-current"},
+                        {"code": "ORPHAN"},
+                        {"id": "ga-current", "code": "GOOD"},
+                    ]
+                }
+
+        result = await make_coordinator(
+            PartialProfileClient([ACTIVE_HOME])
+        )._fetch_all()
+
+        self.assertIn("ee-current", result["subscriptions"])
+
     async def test_no_home_contexts_fails_the_update(self) -> None:
         with self.assertRaises(UpdateFailed):
             await make_coordinator(FakeClient([]))._fetch_all()
@@ -216,6 +249,63 @@ class FetchAllTest(unittest.IsolatedAsyncioTestCase):
         result = await make_coordinator(FakeClient([home]))._fetch_all()
 
         self.assertEqual(list(result["subscriptions"]), ["ee-y"])
+
+
+class CoordinatorConstructionTest(unittest.TestCase):
+    """Real construction, unlike the rest of this file.
+
+    `DataUpdateCoordinator.__init__` reports deprecations through Home
+    Assistant's frame helper, which only exists inside a running instance, so
+    that one call is silenced.
+    """
+
+    def setUp(self) -> None:
+        patcher = patch("homeassistant.helpers.frame.report_usage")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_client_and_exclusions_are_stored(self) -> None:
+        client = FakeClient([])
+
+        coordinator = NenDataCoordinator(MagicMock(), client, excluded={"ga-1"})
+
+        self.assertIs(coordinator.client, client)
+        self.assertEqual(coordinator.excluded, {"ga-1"})
+        self.assertEqual(coordinator.update_interval, timedelta(hours=6))
+
+    def test_exclusions_default_to_empty(self) -> None:
+        coordinator = NenDataCoordinator(MagicMock(), FakeClient([]))
+
+        self.assertEqual(coordinator.excluded, set())
+
+
+class UpdateDataTest(unittest.IsolatedAsyncioTestCase):
+    async def test_successful_update_returns_the_data(self) -> None:
+        coordinator = make_coordinator(FakeClient([ACTIVE_HOME]))
+
+        result = await coordinator._async_update_data()
+
+        self.assertIn("ee-current", result["subscriptions"])
+
+    async def test_auth_errors_become_update_failed(self) -> None:
+        coordinator = make_coordinator(FakeClient([ACTIVE_HOME]))
+
+        with patch.object(
+            coordinator, "_fetch_all", side_effect=NenAuthError("expired")
+        ):
+            with self.assertRaises(UpdateFailed) as caught:
+                await coordinator._async_update_data()
+
+        self.assertIn("Authentication error", str(caught.exception))
+
+    async def test_api_errors_become_update_failed(self) -> None:
+        coordinator = make_coordinator(FakeClient([ACTIVE_HOME]))
+
+        with patch.object(coordinator, "_fetch_all", side_effect=NenApiError("503")):
+            with self.assertRaises(UpdateFailed) as caught:
+                await coordinator._async_update_data()
+
+        self.assertIn("API error", str(caught.exception))
 
 
 class ExcludedSubscriptionsTest(unittest.IsolatedAsyncioTestCase):
