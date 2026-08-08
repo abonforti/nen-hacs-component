@@ -4,19 +4,22 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-08-08
 
 ### Added
 
-- An options flow to choose which contracts to set up. Deselecting one removes its devices and entities; contracts added to the account later are set up automatically.
+- An options flow to choose which contracts to set up, from the integration's **Configure** menu. Deselecting a contract removes its devices and entities; contracts added to the account later are set up automatically.
+- Monthly Rate exposes `rate_before_discount`, `discount` and `cost_breakdown` attributes, the last splitting the rate into the categories NeN itself uses.
+- `docs/API.md`, documenting the endpoints the integration calls.
 
 ### Fixed
 
 - Monthly Rate ignored `subscriptionDiscount`, so accounts with a discount saw a higher rate than the NeN app shows. The sensor now reports the rate net of the discount. Accounts without a discount are unaffected.
 
-### Added
+### Internal
 
-- Monthly Rate exposes `rate_before_discount`, `discount` and `cost_breakdown` attributes, the last splitting the rate into the categories NeN itself uses.
+- `coordinator.py` brought under test, from no coverage to 94%.
+- The CI type check now runs against the real dependencies. Without them installed, `ignore_missing_imports` was hiding every error that depended on aiohttp's or Home Assistant's types, including two genuine ones in `api.py`.
 
 ## [1.0.0] - 2026-08-08
 
@@ -38,4 +41,5 @@ First tagged release. Everything below is what the integration ships with, not a
 - These sensors expose account-level totals and are not suitable as primary sources for the Home Assistant Energy Dashboard. See the README for details.
 - Requires Home Assistant 2026.4.4 or later, enforced through `hacs.json`.
 
+[1.1.0]: https://github.com/abonforti/nen-hacs-component/releases/tag/v1.1.0
 [1.0.0]: https://github.com/abonforti/nen-hacs-component/releases/tag/v1.0.0
