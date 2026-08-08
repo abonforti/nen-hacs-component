@@ -78,10 +78,14 @@ Raw ID token, plus `?origin=Web`. Contract and pricing detail.
 Notes:
 
 - `subscriptionPrice` is the monthly rate **before** discounts. `subscriptionDiscount` is already signed negative, so the net rate the app shows is the sum of the two. Accounts without a discount return `0`.
+- NeN states how the rate is built: the last twelve months of actual consumption (or a projection of what is missing) multiplied by the energy price, plus the fixed sales quota, taxes, transport, meter management and the TV licence, plus the cuscinetto, all divided by twelve. The `billDetails` categories are that calculation, already broken down.
 - `billDetails` splits the rate into categories, each `{ id, categoryLabel, categoryLabelValue, expandedContent }`. Observed category ids include `notOnNeN`, `consumo`, `fixedPrice`, `services` and `cuscinettoDebitoPromo`. The values add up to `subscriptionPrice`.
 - A discount appears as its own `billDetails` category **only on accounts that have one**, so it is absent from captures taken on accounts without discounts. `additionalProduct[].discount` is a second place discounts can appear.
+- The **cuscinetto** users see in the NeN app is the `cuscinettoDebitoPromo` category inside `billDetails`, a monthly component of the rate. It is not a running total, and the app shows no accumulated figure. The integration exposes it through the Monthly Rate sensor's `cost_breakdown` attribute.
+- `balanceAmount` looks like it should be the accumulated cuscinetto balance, but it reads `0` on every contract checked, including on an account that pays a non-zero `cuscinettoDebitoPromo` every month. Its meaning is unconfirmed. Do not expose it as a balance without a non-zero sample and a known sign convention.
 - `offerType` encodes the contract length in months, for example `EE_120` or `GA_12`.
-- Dates are `YYYY-MM-DD`.
+- `initialConsumption` and `realVolume` both equal the annual cap already available as `annualConsumptions.maxConsumption`, so they add nothing.
+- Dates are `YYYY-MM-DD`. `prospectedActivationDate` is NeN's wording for a *planned* activation, so on a supply still being activated it is a future date rather than a historical one.
 
 ### `GET /consumptions/b2c/global-consumptions`
 
