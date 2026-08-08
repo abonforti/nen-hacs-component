@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import aiohttp
 
-from custom_components.nen.api import NenAuthError
+from custom_components.nen.api import NenApiError, NenAuthError
 from custom_components.nen.config_flow import (
     NenConfigFlow,
     NenOptionsFlow,
@@ -111,6 +111,116 @@ class ConfigFlowTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 result["errors"], {"base": "cannot_connect"}, msg=repr(failure)
             )
+
+
+class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        self.entry = MagicMock()
+        self.entry.entry_id = "entry"
+        self.entry.data = dict(CREDENTIALS)
+
+    def _flow(self) -> NenConfigFlow:
+        flow = make_config_flow()
+        flow._get_reauth_entry = MagicMock(return_value=self.entry)
+        flow.async_update_reload_and_abort = MagicMock(
+            return_value={"type": "abort", "reason": "reauth_successful"}
+        )
+        return flow
+
+    async def _submit(self, flow, client, password="new-password"):
+        with (
+            patch(
+                "custom_components.nen.config_flow.NenApiClient", return_value=client
+            ),
+            patch("custom_components.nen.config_flow.async_get_clientsession"),
+        ):
+            return await flow.async_step_reauth_confirm({"password": password})
+
+    async def test_reauth_entry_point_shows_the_password_form(self) -> None:
+        result = await self._flow().async_step_reauth(dict(CREDENTIALS))
+
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["step_id"], "reauth_confirm")
+
+    async def test_the_form_names_the_account_being_reauthenticated(self) -> None:
+        result = await self._flow().async_step_reauth_confirm()
+
+        self.assertEqual(
+            result["description_placeholders"], {"username": CREDENTIALS["username"]}
+        )
+
+    async def test_the_form_asks_only_for_a_password(self) -> None:
+        result = await self._flow().async_step_reauth_confirm()
+
+        self.assertEqual(
+            {str(key) for key in result["data_schema"].schema}, {"password"}
+        )
+
+    async def test_a_working_password_updates_the_existing_entry(self) -> None:
+        flow = self._flow()
+        client = MagicMock()
+        client.validate_credentials = AsyncMock(return_value=True)
+
+        result = await self._submit(flow, client)
+
+        self.assertEqual(result["reason"], "reauth_successful")
+        flow.async_update_reload_and_abort.assert_called_once_with(
+            self.entry, data_updates={"password": "new-password"}
+        )
+
+    async def test_the_stored_username_is_reused(self) -> None:
+        """The email is the unique ID, so reauthentication must not change it."""
+        flow = self._flow()
+        client = MagicMock()
+        client.validate_credentials = AsyncMock(return_value=True)
+
+        with (
+            patch(
+                "custom_components.nen.config_flow.NenApiClient", return_value=client
+            ) as factory,
+            patch("custom_components.nen.config_flow.async_get_clientsession"),
+        ):
+            await flow.async_step_reauth_confirm({"password": "new-password"})
+
+        self.assertEqual(factory.call_args.args[0], CREDENTIALS["username"])
+
+    async def test_a_still_wrong_password_reshows_the_form(self) -> None:
+        flow = self._flow()
+        client = MagicMock()
+        client.validate_credentials = AsyncMock(side_effect=NenAuthError("no"))
+
+        result = await self._submit(flow, client)
+
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["errors"], {"base": "invalid_auth"})
+        flow.async_update_reload_and_abort.assert_not_called()
+
+    async def test_an_outage_does_not_discard_the_attempt(self) -> None:
+        flow = self._flow()
+        client = MagicMock()
+        client.validate_credentials = AsyncMock(side_effect=NenApiError("503"))
+
+        result = await self._submit(flow, client)
+
+        self.assertEqual(result["errors"], {"base": "cannot_connect"})
+
+
+class TransientFailureTest(unittest.IsolatedAsyncioTestCase):
+    async def test_setup_reports_cannot_connect_on_api_errors(self) -> None:
+        """NenApiError now reaches the flow, where it used to be impossible."""
+        flow = make_config_flow()
+        client = MagicMock()
+        client.validate_credentials = AsyncMock(side_effect=NenApiError("cognito down"))
+
+        with (
+            patch(
+                "custom_components.nen.config_flow.NenApiClient", return_value=client
+            ),
+            patch("custom_components.nen.config_flow.async_get_clientsession"),
+        ):
+            result = await flow.async_step_user(dict(CREDENTIALS))
+
+        self.assertEqual(result["errors"], {"base": "cannot_connect"})
 
 
 class OptionsFlowFactoryTest(unittest.TestCase):

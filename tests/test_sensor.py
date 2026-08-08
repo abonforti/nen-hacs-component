@@ -37,6 +37,7 @@ ELECTRICITY_SUB = {
         "monthly_rate_gross": 100.0,
         "discount": -1.0,
         "cost_breakdown": [{"id": "consumo", "label": "Consumo", "value": 28.27}],
+        "activation_date": date(2020, 10, 1),
         "end_date": date(2034, 10, 1),
         "recalculation_date": date(2026, 10, 1),
         "offer_type": "EE_120",
@@ -295,6 +296,7 @@ class AttributesTest(unittest.TestCase):
             attrs["cost_breakdown"],
             [{"id": "consumo", "label": "Consumo", "value": 28.27}],
         )
+        self.assertEqual(attrs["contract_activation_date"], date(2020, 10, 1))
         self.assertEqual(attrs["contract_end_date"], date(2034, 10, 1))
         self.assertEqual(attrs["contract_recalculation_date"], date(2026, 10, 1))
         self.assertEqual(attrs["offer_type"], "EE_120")
@@ -311,6 +313,7 @@ class AttributesTest(unittest.TestCase):
         )
 
         read_keys = {
+            "activation_date",
             "end_date",
             "recalculation_date",
             "offer_type",

@@ -46,6 +46,7 @@ class ParseContractTest(unittest.TestCase):
             {
                 "subscriptionPrice": 83.28,
                 "subscriptionDiscount": 0,
+                "prospectedActivationDate": "2020-10-01",
                 "renewalDate": "2034-10-01",
                 "recalculationDate": "2026-10-01",
                 "offerType": "EE_120",
@@ -59,6 +60,7 @@ class ParseContractTest(unittest.TestCase):
                 "monthly_rate_gross": 83.28,
                 "discount": None,
                 "cost_breakdown": None,
+                "activation_date": date(2020, 10, 1),
                 "end_date": date(2034, 10, 1),
                 "recalculation_date": date(2026, 10, 1),
                 "offer_type": "EE_120",
@@ -128,6 +130,7 @@ class ParseContractTest(unittest.TestCase):
                 "monthly_rate_gross": None,
                 "discount": None,
                 "cost_breakdown": None,
+                "activation_date": None,
                 "end_date": None,
                 "recalculation_date": None,
                 "offer_type": None,
