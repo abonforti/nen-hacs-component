@@ -31,7 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
       - name: Run tests
-        run: PYTHONPATH=custom_components/nen pytest --cov=custom_components/nen
+        run: pytest --cov=custom_components/nen
 
   lint:
     name: Lint & Type Check
