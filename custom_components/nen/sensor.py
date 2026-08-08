@@ -269,6 +269,9 @@ class NenSensor(CoordinatorEntity[NenDataCoordinator], SensorEntity):
             attrs["contract_end_date"] = contract.get("end_date")
             attrs["contract_start_date"] = contract.get("start_date")
             attrs["contract_name"] = contract.get("name")
+            attrs["rate_before_discount"] = contract.get("monthly_rate_gross")
+            attrs["discount"] = contract.get("discount")
+            attrs["cost_breakdown"] = contract.get("cost_breakdown")
 
         if "last_bill" in self.entity_description.key:
             last_bill = sub.get("last_bill") or {}
