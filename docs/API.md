@@ -172,7 +172,9 @@ Notes:
 
 Bearer token, with `?month=MM&year=YYYY&pods=POD1,POD2`. Returns `{ "podInvoices": [...] }`.
 
-Legacy. A capture of the site's traffic in 2026-07 showed no call to it; the frontend uses `/bills/details/{homeContextId}` instead. The integration still calls it, tolerating failure, in case some accounts still depend on it.
+**Not used by the integration.** Documented because it exists and once was.
+
+A capture of the site's traffic in 2026-07 showed no call to it; the frontend uses `/bills/details/{homeContextId}` instead. The integration used to call it, but nothing ever read the result, so it was one wasted request per refresh. Removed rather than kept on the chance some account still needs it: if that turns out to be true, the endpoint is documented here and the caller is four lines.
 
 ## Capturing traffic
 

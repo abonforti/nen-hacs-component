@@ -258,13 +258,6 @@ class EndpointTest(unittest.IsolatedAsyncioTestCase):
         call = await self._capture(lambda c: c.get_profile_details())
         self.assertTrue(call["url"].endswith("/profile/details"))
 
-    async def test_invoices_pads_the_month_and_joins_pods(self) -> None:
-        call = await self._capture(lambda c: c.get_invoices(4, 2026, ["P1", "P2"]))
-        self.assertTrue(call["url"].endswith("/invoices"))
-        self.assertEqual(
-            call["params"], {"month": "04", "year": "2026", "pods": "P1,P2"}
-        )
-
     async def test_bill_details_uses_raw_auth(self) -> None:
         call = await self._capture(lambda c: c.get_bill_details("home-1"))
         self.assertTrue(call["url"].endswith("/bills/details/home-1"))

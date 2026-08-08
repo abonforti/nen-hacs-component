@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -161,26 +161,6 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     )
 
             result["subscriptions"][sub_id] = entry
-
-        # Invoices for current and previous month
-        # NOTE: kept for backwards compatibility, but a live capture of
-        # nen.it's own network traffic (2026-07) no longer showed any call to
-        # this endpoint — the frontend now uses get_bill_details() above
-        # instead. This may be stale/deprecated; left in place rather than
-        # removed since it's not causing failures (NenApiError is caught) and
-        # someone's account/tariff might still depend on it.
-        pods = [s.get("pod") for s in result["subscriptions"].values() if s.get("pod")]
-        if pods:
-            now = datetime.now().astimezone()
-            invoices: list[dict] = []
-            for month_offset in range(3):
-                dt = now.replace(day=1) - timedelta(days=30 * month_offset)
-                try:
-                    inv = await self.client.get_invoices(dt.month, dt.year, pods)
-                    invoices.extend(inv.get("podInvoices", []))
-                except NenApiError:
-                    break
-            result["invoices"] = invoices
 
         return result
 
