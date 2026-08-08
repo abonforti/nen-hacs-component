@@ -14,7 +14,9 @@ Do not "simplify" them. If a change alters which subscription receives the legac
 
 NeN publishes no API documentation. Endpoints, field names and response shapes were captured from the web app's network traffic.
 
-Never invent an endpoint, a query parameter or a response field. If something is needed and not already in `custom_components/nen/api.py`, capture it first from browser DevTools (Network tab, filter `prod.api.nen.it`) and include the observed payload in the pull request.
+What is known about the endpoints is written down in [docs/API.md](docs/API.md). Read it before touching `api.py` or `coordinator.py`.
+
+Never invent an endpoint, a query parameter or a response field. If something is needed and not already documented there, capture it first from browser DevTools (Network tab, filter `prod.api.nen.it`) and include the observed payload in the pull request, with identifiers redacted.
 
 Field values are not always what they look like. Prices arrive in Italian decimal notation, for example `"0,13943"`. Use `_safe_float()`, which handles the comma; a bare `float()` raises.
 
