@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-08
+
+### Added
+
+- Reauthentication. When NeN rejects the stored password, Home Assistant now prompts for a new one instead of failing silently every six hours. The existing config entry is updated in place, so entity IDs and recorded history survive; previously the only remedy was deleting and re-adding the integration, which lost both.
+- Monthly Rate exposes `contract_activation_date`, from the contract's activation date.
+
+### Fixed
+
+- A network failure or an AWS outage during login was reported as an authentication error. Only a credential rejection from Cognito counts as one now; anything else is treated as transient and retried, so a passing outage cannot prompt for a password that is still correct.
+
 ## [1.1.0] - 2026-08-08
 
 ### Added
@@ -41,5 +52,6 @@ First tagged release. Everything below is what the integration ships with, not a
 - These sensors expose account-level totals and are not suitable as primary sources for the Home Assistant Energy Dashboard. See the README for details.
 - Requires Home Assistant 2026.4.4 or later, enforced through `hacs.json`.
 
+[1.2.0]: https://github.com/abonforti/nen-hacs-component/releases/tag/v1.2.0
 [1.1.0]: https://github.com/abonforti/nen-hacs-component/releases/tag/v1.1.0
 [1.0.0]: https://github.com/abonforti/nen-hacs-component/releases/tag/v1.0.0

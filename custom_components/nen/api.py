@@ -10,11 +10,24 @@ from .const import API_BASE_URL, COGNITO_CLIENT_ID, COGNITO_USER_POOL_ID
 
 
 class NenAuthError(Exception):
-    pass
+    """The credentials were rejected and will not work until the user acts."""
 
 
 class NenApiError(Exception):
-    pass
+    """The request failed for a reason that may not repeat."""
+
+
+# Cognito error codes that mean the stored credentials are no longer usable.
+# Anything else, a network failure or an AWS outage, is transient and must not
+# prompt the user to re-enter a password that is still correct.
+_CREDENTIAL_ERRORS = frozenset(
+    {
+        "NotAuthorizedException",
+        "UserNotFoundException",
+        "PasswordResetRequiredException",
+        "UserNotConfirmedException",
+    }
+)
 
 
 class NenApiClient:
@@ -39,17 +52,27 @@ class NenApiClient:
             await asyncio.get_event_loop().run_in_executor(
                 None, self._authenticate_sync
             )
+        except NenAuthError:
+            raise
         except Exception as err:
-            raise NenAuthError(f"Authentication failed: {err}") from err
+            # Reaching Cognito failed rather than being turned away by it.
+            raise NenApiError(f"Authentication unavailable: {err}") from err
         if self._id_token is None:
             raise NenAuthError("Authentication succeeded but returned no token")
         return self._id_token
 
     def _authenticate_sync(self) -> None:
+        from botocore.exceptions import ClientError
         from pycognito import Cognito
 
         u = Cognito(COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID, username=self._username)
-        u.authenticate(password=self._password)
+        try:
+            u.authenticate(password=self._password)
+        except ClientError as err:
+            code = err.response.get("Error", {}).get("Code", "")
+            if code in _CREDENTIAL_ERRORS:
+                raise NenAuthError(f"Credentials rejected: {code}") from err
+            raise
         self._id_token = u.id_token
         # Conservative expiry: refresh 5 min before actual expiry
         self._token_expiry = datetime.now(UTC) + timedelta(seconds=3300)

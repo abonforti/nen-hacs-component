@@ -8,6 +8,7 @@ import unittest
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.nen.api import NenApiError, NenAuthError
@@ -287,13 +288,14 @@ class UpdateDataTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("ee-current", result["subscriptions"])
 
-    async def test_auth_errors_become_update_failed(self) -> None:
+    async def test_rejected_credentials_ask_for_reauthentication(self) -> None:
+        """ConfigEntryAuthFailed is what makes Home Assistant prompt the user."""
         coordinator = make_coordinator(FakeClient([ACTIVE_HOME]))
 
         with patch.object(
-            coordinator, "_fetch_all", side_effect=NenAuthError("expired")
+            coordinator, "_fetch_all", side_effect=NenAuthError("rejected")
         ):
-            with self.assertRaises(UpdateFailed) as caught:
+            with self.assertRaises(ConfigEntryAuthFailed) as caught:
                 await coordinator._async_update_data()
 
         self.assertIn("Authentication error", str(caught.exception))

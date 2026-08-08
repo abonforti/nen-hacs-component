@@ -8,6 +8,13 @@
           "username": "Email",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Autentica di nuovo NeN Energy",
+        "description": "La password salvata per {username} non è più accettata. Inserisci quella attuale.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -15,7 +22,8 @@
       "cannot_connect": "Impossibile connettersi alle API di NeN."
     },
     "abort": {
-      "already_configured": "Account già configurato."
+      "already_configured": "Account già configurato.",
+      "reauth_successful": "Nuova autenticazione riuscita."
     }
   },
   "options": {

@@ -72,10 +72,22 @@ class EnsureTokenTest(unittest.IsolatedAsyncioTestCase):
         with patch.object(client, "_authenticate_sync", side_effect=reauthenticate):
             self.assertEqual(await client._ensure_token(), "fresh")
 
-    async def test_authentication_failure_becomes_auth_error(self) -> None:
+    async def test_unreachable_cognito_is_a_transient_api_error(self) -> None:
+        """Not an auth error: the credentials were never actually judged."""
         client = make_client(FakeSession(), token=None)
 
-        with patch.object(client, "_authenticate_sync", side_effect=ValueError("nope")):
+        with patch.object(client, "_authenticate_sync", side_effect=OSError("no dns")):
+            with self.assertRaises(NenApiError) as caught:
+                await client._ensure_token()
+
+        self.assertNotIsInstance(caught.exception, NenAuthError)
+
+    async def test_rejected_credentials_stay_an_auth_error(self) -> None:
+        client = make_client(FakeSession(), token=None)
+
+        with patch.object(
+            client, "_authenticate_sync", side_effect=NenAuthError("rejected")
+        ):
             with self.assertRaises(NenAuthError):
                 await client._ensure_token()
 
@@ -97,6 +109,42 @@ class EnsureTokenTest(unittest.IsolatedAsyncioTestCase):
 
 
 class AuthenticateSyncTest(unittest.TestCase):
+    @staticmethod
+    def _client_error(code: str):
+        from botocore.exceptions import ClientError
+
+        return ClientError({"Error": {"Code": code, "Message": code}}, "InitiateAuth")
+
+    def test_rejected_credentials_raise_auth_error(self) -> None:
+        """Only these codes may trigger a reauthentication prompt."""
+        for code in (
+            "NotAuthorizedException",
+            "UserNotFoundException",
+            "PasswordResetRequiredException",
+            "UserNotConfirmedException",
+        ):
+            client = make_client(FakeSession(), token=None)
+            cognito = MagicMock()
+            cognito.authenticate.side_effect = self._client_error(code)
+
+            with patch("pycognito.Cognito", return_value=cognito):
+                with self.assertRaises(NenAuthError, msg=code):
+                    client._authenticate_sync()
+
+    def test_other_aws_errors_are_not_credential_failures(self) -> None:
+        """A throttle or an outage must not ask the user for a new password."""
+        client = make_client(FakeSession(), token=None)
+        cognito = MagicMock()
+        cognito.authenticate.side_effect = self._client_error(
+            "TooManyRequestsException"
+        )
+
+        with patch("pycognito.Cognito", return_value=cognito):
+            with self.assertRaises(Exception) as caught:
+                client._authenticate_sync()
+
+        self.assertNotIsInstance(caught.exception, NenAuthError)
+
     def test_token_and_expiry_are_stored(self) -> None:
         client = make_client(FakeSession(), token=None)
         cognito = MagicMock()

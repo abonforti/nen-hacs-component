@@ -266,6 +266,7 @@ class NenSensor(CoordinatorEntity[NenDataCoordinator], SensorEntity):
 
         if "monthly_rate" in self.entity_description.key:
             contract = sub.get("contract", {})
+            attrs["contract_activation_date"] = contract.get("activation_date")
             attrs["contract_end_date"] = contract.get("end_date")
             attrs["contract_recalculation_date"] = contract.get("recalculation_date")
             attrs["offer_type"] = contract.get("offer_type")

@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import NenApiClient, NenApiError, NenAuthError
@@ -38,7 +39,9 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             return await self._fetch_all()
         except NenAuthError as err:
-            raise UpdateFailed(f"Authentication error: {err}") from err
+            # Only raised once Cognito has actually rejected the credentials,
+            # so this starts a reauthentication flow rather than retrying.
+            raise ConfigEntryAuthFailed(f"Authentication error: {err}") from err
         except NenApiError as err:
             raise UpdateFailed(f"API error: {err}") from err
 
@@ -216,6 +219,9 @@ def _parse_contract(data: dict) -> dict:
         "monthly_rate_gross": gross,
         "discount": discount or None,
         "cost_breakdown": _parse_cost_breakdown(data.get("billDetails")),
+        # "prospected" is NeN's wording: on a supply still being activated this
+        # is a planned date, not a historical one.
+        "activation_date": _parse_date(data.get("prospectedActivationDate")),
         "end_date": _parse_date(data.get("renewalDate")),
         "recalculation_date": _parse_date(data.get("recalculationDate")),
         "offer_type": data.get("offerType"),
