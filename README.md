@@ -54,6 +54,8 @@ This integration polls NeN's API every 6 hours and exposes sensors for electrici
 3. Enter your NeN account email and password
 4. A separate device and sensor set will be created for each contract/POD in your account
 
+To set up only some of them, open the integration's **Configure** menu and clear the contracts you do not want. Their devices and entities are removed. Contracts added to your NeN account later appear automatically.
+
 ## Energy Dashboard Integration
 
 These sensors expose account-level data (consumption totals, billing info). They are **not suitable as primary sources** for the Home Assistant Energy Dashboard.

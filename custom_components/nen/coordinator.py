@@ -19,7 +19,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    def __init__(self, hass: HomeAssistant, client: NenApiClient) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        client: NenApiClient,
+        excluded: set[str] | None = None,
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -27,6 +32,7 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(hours=SCAN_INTERVAL_HOURS),
         )
         self.client = client
+        self.excluded = excluded or set()
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -56,7 +62,11 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         result: dict[str, Any] = {
             "homes": {},
             "subscriptions": {},
+            # Legacy IDs are derived from every active contract, not just the
+            # selected ones, so excluding a property cannot renumber the
+            # entities of the ones that remain.
             "legacy_subscription_ids": legacy_subscription_ids(home_contexts),
+            "available": _available_subscriptions(home_contexts),
         }
 
         # Bill details are scoped by home context. Keep each home's utility
@@ -79,6 +89,10 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not utility:
                 continue
 
+            sub_id = sub.get("id")
+            if not sub_id or sub_id in self.excluded:
+                continue
+
             home_id = home.get("id")
             if home_id:
                 result["homes"][home_id] = {
@@ -88,9 +102,6 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "is_default": home.get("isDefault", False),
                 }
 
-            sub_id = sub.get("id")
-            if not sub_id:
-                continue
             pod = sub.get("podName")
             opp_code = opp_codes.get(sub_id, "")
 
@@ -169,6 +180,30 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             result["invoices"] = invoices
 
         return result
+
+
+def _available_subscriptions(home_contexts: list[dict]) -> list[dict]:
+    """List every active contract, including ones the user excluded.
+
+    The options flow needs the full set to render its checkboxes; the
+    coordinator's own data only holds the selected ones.
+    """
+    available: list[dict] = []
+    for home, sub in preferred_subscriptions(home_contexts):
+        sub_id = sub.get("id")
+        utility = sub.get("utility")
+        if not sub_id or not utility:
+            continue
+        available.append(
+            {
+                "id": sub_id,
+                "utility": utility,
+                "home_name": home.get("name"),
+                "home_address": home.get("address") or home.get("fullAddress"),
+                "pod": sub.get("podName"),
+            }
+        )
+    return available
 
 
 def _parse_contract(data: dict) -> dict:
