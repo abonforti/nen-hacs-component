@@ -6,8 +6,12 @@ name: Home Assistant compatibility
 # work is how a check stops being read.
 on:
   workflow_dispatch:
+  # Daily rather than weekly: Home Assistant's beta window is about a week, so
+  # a weekly run can sample it once, too late to be worth reporting. Costs
+  # nothing on a public repository, and produces no notification noise because
+  # dev, the tag that churns, cannot fail the run.
   schedule:
-    - cron: "23 5 * * 1"
+    - cron: "23 5 * * *"
 
 permissions:
   contents: read
