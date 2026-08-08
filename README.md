@@ -34,6 +34,14 @@ This integration polls NeN's API every 6 hours and exposes sensors for electrici
 
 ### HACS (Recommended)
 
+Requires HACS to be installed already.
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=abonforti&repository=nen-hacs-component&category=integration)
+
+Then click **Download**, and restart Home Assistant.
+
+Or add it by hand, if the button above does not reach your instance:
+
 1. Open the **HACS** panel in Home Assistant
 2. Click the **⋮** menu (top right) → **Custom repositories**
 3. Add repository URL: `https://github.com/abonforti/nen-hacs-component`
@@ -49,10 +57,19 @@ This integration polls NeN's API every 6 hours and exposes sensors for electrici
 
 ## Configuration
 
+Once the integration is downloaded and Home Assistant has restarted:
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=nen)
+
+Or start it by hand:
+
 1. Navigate to Settings → Devices & Services → Integrations
 2. Click **+ Add Integration** and search for "NeN Energy"
-3. Enter your NeN account email and password
-4. A separate device and sensor set will be created for each contract/POD in your account
+
+Then:
+
+1. Enter your NeN account email and password
+2. A separate device and sensor set will be created for each contract/POD in your account
 
 To set up only some of them, open the integration's **Configure** menu and clear the contracts you do not want. Their devices and entities are removed. Contracts added to your NeN account later appear automatically.
 
