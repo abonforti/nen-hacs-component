@@ -172,12 +172,46 @@ class NenDataCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
 
 def _parse_contract(data: dict) -> dict:
+    # subscriptionPrice is the rate before discounts; subscriptionDiscount is
+    # already signed negative, so the net rate the NeN app shows is their sum.
+    gross = _safe_float(data.get("subscriptionPrice"))
+    discount = _safe_float(data.get("subscriptionDiscount")) or 0.0
     return {
-        "monthly_rate": _safe_float(data.get("subscriptionPrice")),
+        "monthly_rate": None if gross is None else round(gross + discount, 2),
+        "monthly_rate_gross": gross,
+        "discount": discount or None,
+        "cost_breakdown": _parse_cost_breakdown(data.get("billDetails")),
         "end_date": _parse_date(data.get("renewalDate")),
         "recalculation_date": _parse_date(data.get("recalculationDate")),
         "offer_type": data.get("offerType"),
     }
+
+
+def _parse_cost_breakdown(bill_details: Any) -> list[dict] | None:
+    """Summarise the categories that make up the monthly rate.
+
+    `billDetails` splits the rate into categories such as "Consumo" or
+    "Quota fissa", whose values add up to `subscriptionPrice`. A discount
+    appears here as its own category only when the account has one.
+    """
+    if not isinstance(bill_details, list):
+        return None
+
+    breakdown: list[dict] = []
+    for category in bill_details:
+        if not isinstance(category, dict):
+            continue
+        value = _safe_float(category.get("categoryLabelValue"))
+        if value is None:
+            continue
+        breakdown.append(
+            {
+                "id": category.get("id"),
+                "label": category.get("categoryLabel"),
+                "value": round(value, 2),
+            }
+        )
+    return breakdown or None
 
 
 def _parse_detail(data: dict) -> dict:

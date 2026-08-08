@@ -45,6 +45,7 @@ class ParseContractTest(unittest.TestCase):
         parsed = _parse_contract(
             {
                 "subscriptionPrice": 83.28,
+                "subscriptionDiscount": 0,
                 "renewalDate": "2034-10-01",
                 "recalculationDate": "2026-10-01",
                 "offerType": "EE_120",
@@ -55,17 +56,78 @@ class ParseContractTest(unittest.TestCase):
             parsed,
             {
                 "monthly_rate": 83.28,
+                "monthly_rate_gross": 83.28,
+                "discount": None,
+                "cost_breakdown": None,
                 "end_date": date(2034, 10, 1),
                 "recalculation_date": date(2026, 10, 1),
                 "offer_type": "EE_120",
             },
         )
 
+    def test_discount_is_subtracted_from_the_rate(self) -> None:
+        parsed = _parse_contract(
+            {"subscriptionPrice": 100.00, "subscriptionDiscount": -1}
+        )
+
+        self.assertEqual(parsed["monthly_rate"], 99.0)
+        self.assertEqual(parsed["monthly_rate_gross"], 100.0)
+        self.assertEqual(parsed["discount"], -1.0)
+
+    def test_missing_discount_leaves_the_rate_untouched(self) -> None:
+        parsed = _parse_contract({"subscriptionPrice": 29.8})
+
+        self.assertEqual(parsed["monthly_rate"], 29.8)
+        self.assertIsNone(parsed["discount"])
+
+    def test_cost_breakdown_is_summarised(self) -> None:
+        parsed = _parse_contract(
+            {
+                "subscriptionPrice": 83.28,
+                "billDetails": [
+                    {
+                        "id": "notOnNeN",
+                        "categoryLabel": "Che non dipendono da noi",
+                        "categoryLabelValue": 35.54532973330833,
+                        "expandedContent": [{"labelType": "Tasse", "value": 7.6}],
+                    },
+                    {
+                        "id": "fixedPrice",
+                        "categoryLabel": "Quota fissa",
+                        "categoryLabelValue": 10,
+                    },
+                    {"id": "broken", "categoryLabel": "No value"},
+                ],
+            }
+        )
+
+        self.assertEqual(
+            parsed["cost_breakdown"],
+            [
+                {
+                    "id": "notOnNeN",
+                    "label": "Che non dipendono da noi",
+                    "value": 35.55,
+                },
+                {"id": "fixedPrice", "label": "Quota fissa", "value": 10.0},
+            ],
+        )
+
+    def test_unusable_bill_details_yield_no_breakdown(self) -> None:
+        for value in (None, [], {}, "nope", [1, 2]):
+            self.assertIsNone(
+                _parse_contract({"billDetails": value})["cost_breakdown"],
+                msg=repr(value),
+            )
+
     def test_empty_payload_yields_none_values(self) -> None:
         self.assertEqual(
             _parse_contract({}),
             {
                 "monthly_rate": None,
+                "monthly_rate_gross": None,
+                "discount": None,
+                "cost_breakdown": None,
                 "end_date": None,
                 "recalculation_date": None,
                 "offer_type": None,

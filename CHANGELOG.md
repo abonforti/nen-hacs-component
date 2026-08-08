@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Monthly Rate ignored `subscriptionDiscount`, so accounts with a discount saw a higher rate than the NeN app shows. The sensor now reports the rate net of the discount. Accounts without a discount are unaffected.
+
+### Added
+
+- Monthly Rate exposes `rate_before_discount`, `discount` and `cost_breakdown` attributes, the last splitting the rate into the categories NeN itself uses.
+
 ## [1.0.0] - 2026-08-08
 
 First tagged release. Everything below is what the integration ships with, not a diff against an earlier version.
