@@ -264,6 +264,38 @@ class ParseConsumptionsTest(unittest.TestCase):
         self.assertEqual(parsed["latest_value"], 14.5)
         self.assertEqual(parsed["latest_date"], "2026-03")
 
+    def test_past_months_search_skips_back_over_unusable_entries(self) -> None:
+        """The newest months can be empty; the search keeps walking backwards."""
+        parsed = _parse_consumptions(
+            {
+                "annualConsumptions": {},
+                "consumptions": {
+                    "g2": {"data": []},
+                    "pastMonths": [
+                        {"period": "2026-01", "realConsumption": 31.0},
+                        {"period": "2026-02", "realConsumption": 0},
+                        {"period": "2026-03"},
+                    ],
+                },
+            }
+        )
+
+        self.assertEqual(parsed["latest_value"], 31.0)
+        self.assertEqual(parsed["latest_date"], "2026-01")
+
+    def test_no_usable_past_month_leaves_the_value_unset(self) -> None:
+        parsed = _parse_consumptions(
+            {
+                "consumptions": {
+                    "g2": {"data": []},
+                    "pastMonths": [{"period": "2026-03", "realConsumption": 0}],
+                }
+            }
+        )
+
+        self.assertIsNone(parsed["latest_value"])
+        self.assertIsNone(parsed["latest_date"])
+
     def test_cap_percentage_is_none_without_a_cap(self) -> None:
         parsed = _parse_consumptions(
             {"annualConsumptions": {"totalConsumption": 100, "maxConsumption": 0}}
