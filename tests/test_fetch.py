@@ -98,10 +98,11 @@ class FakeClient:
         return {"podInvoices": []}
 
 
-def make_coordinator(client) -> NenDataCoordinator:
+def make_coordinator(client, excluded=None) -> NenDataCoordinator:
     """Build a coordinator bound to a fake client, skipping HA wiring."""
     coordinator = NenDataCoordinator.__new__(NenDataCoordinator)
     coordinator.client = client
+    coordinator.excluded = set(excluded or ())
     return coordinator
 
 
@@ -215,6 +216,47 @@ class FetchAllTest(unittest.IsolatedAsyncioTestCase):
         result = await make_coordinator(FakeClient([home]))._fetch_all()
 
         self.assertEqual(list(result["subscriptions"]), ["ee-y"])
+
+
+class ExcludedSubscriptionsTest(unittest.IsolatedAsyncioTestCase):
+    async def test_excluded_contracts_are_not_set_up(self) -> None:
+        client = FakeClient([ACTIVE_HOME])
+
+        result = await make_coordinator(client, excluded={"ga-current"})._fetch_all()
+
+        self.assertEqual(list(result["subscriptions"]), ["ee-current"])
+
+    async def test_excluding_every_contract_of_a_home_drops_the_home(self) -> None:
+        client = FakeClient([ACTIVE_HOME])
+
+        result = await make_coordinator(
+            client, excluded={"ee-current", "ga-current"}
+        )._fetch_all()
+
+        self.assertEqual(result["subscriptions"], {})
+        self.assertEqual(result["homes"], {})
+
+    async def test_available_still_lists_excluded_contracts(self) -> None:
+        client = FakeClient([CLOSED_HOME, ACTIVE_HOME])
+
+        result = await make_coordinator(client, excluded={"ga-current"})._fetch_all()
+
+        self.assertEqual(
+            [entry["id"] for entry in result["available"]],
+            ["ee-current", "ga-current"],
+        )
+        self.assertEqual(result["available"][0]["home_name"], "Current flat")
+
+    async def test_legacy_ids_ignore_exclusions(self) -> None:
+        """Excluding one contract must not renumber the entities of another."""
+        client = FakeClient([ACTIVE_HOME])
+
+        result = await make_coordinator(client, excluded={"ee-current"})._fetch_all()
+
+        self.assertEqual(
+            result["legacy_subscription_ids"],
+            {"EE": "ee-current", "GA": "ga-current"},
+        )
 
 
 class RemoveDeviceTest(unittest.IsolatedAsyncioTestCase):

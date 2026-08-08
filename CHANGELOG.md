@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- An options flow to choose which contracts to set up. Deselecting one removes its devices and entities; contracts added to the account later are set up automatically.
+
 ### Fixed
 
 - Monthly Rate ignored `subscriptionDiscount`, so accounts with a discount saw a higher rate than the NeN app shows. The sensor now reports the rate net of the discount. Accounts without a discount are unaffected.

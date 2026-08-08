@@ -17,5 +17,19 @@
     "abort": {
       "already_configured": "Account già configurato."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Contratti",
+        "description": "Scegli quali contratti configurare. Quelli non selezionati vengono rimossi, insieme ai loro dispositivi ed entità. I contratti aggiunti in seguito al tuo account compaiono automaticamente.",
+        "data": {
+          "subscriptions": "Contratti"
+        }
+      }
+    },
+    "abort": {
+      "no_subscriptions": "Nessun contratto trovato su questo account."
+    }
   }
 }
