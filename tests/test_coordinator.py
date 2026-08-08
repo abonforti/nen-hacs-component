@@ -109,6 +109,33 @@ class SubscriptionModelTest(unittest.TestCase):
             iter_subscriptions(homes),
         )
 
+    def test_no_home_contexts_yield_no_legacy_ids(self) -> None:
+        self.assertEqual(legacy_subscription_ids([]), {})
+        self.assertEqual(legacy_subscription_ids([{"subscriptions": []}]), {})
+
+    def test_only_the_first_home_supplies_legacy_ids(self) -> None:
+        """A second home's contracts must not claim the legacy entity IDs."""
+        homes = [
+            {"id": "first", "subscriptions": [{"id": "ee-1", "utility": "EE"}]},
+            {"id": "second", "subscriptions": [{"id": "ga-2", "utility": "GA"}]},
+        ]
+
+        self.assertEqual(legacy_subscription_ids(homes), {"EE": "ee-1"})
+
+    def test_subscriptions_without_id_or_utility_are_skipped(self) -> None:
+        homes = [
+            {
+                "id": "home",
+                "subscriptions": [
+                    {"utility": "EE"},
+                    {"id": "no-utility"},
+                    {"id": "ga-1", "utility": "GA"},
+                ],
+            }
+        ]
+
+        self.assertEqual(legacy_subscription_ids(homes), {"GA": "ga-1"})
+
     def test_legacy_selection_matches_previous_last_utility_wins_behavior(self) -> None:
         homes = [
             {
