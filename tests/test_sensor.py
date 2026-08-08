@@ -38,6 +38,8 @@ ELECTRICITY_SUB = {
         "discount": -1.0,
         "cost_breakdown": [{"id": "consumo", "label": "Consumo", "value": 28.27}],
         "end_date": date(2034, 10, 1),
+        "recalculation_date": date(2026, 10, 1),
+        "offer_type": "EE_120",
     },
     "detail": {"unit_price": 0.13943},
     "last_bill": {
@@ -294,6 +296,30 @@ class AttributesTest(unittest.TestCase):
             [{"id": "consumo", "label": "Consumo", "value": 28.27}],
         )
         self.assertEqual(attrs["contract_end_date"], date(2034, 10, 1))
+        self.assertEqual(attrs["contract_recalculation_date"], date(2026, 10, 1))
+        self.assertEqual(attrs["offer_type"], "EE_120")
+
+    def test_monthly_rate_attributes_match_what_the_parser_produces(self) -> None:
+        """Guards against reading contract keys the coordinator never sets."""
+        from custom_components.nen.coordinator import _parse_contract
+
+        parsed_keys = set(_parse_contract({}))
+        sensor = build(
+            by_key(ELECTRICITY_SENSORS, "ee_monthly_rate"),
+            "ee-1",
+            {"ee-1": {**ELECTRICITY_SUB, "contract": dict.fromkeys(parsed_keys, "x")}},
+        )
+
+        read_keys = {
+            "end_date",
+            "recalculation_date",
+            "offer_type",
+            "monthly_rate_gross",
+            "discount",
+            "cost_breakdown",
+        }
+        self.assertLessEqual(read_keys, parsed_keys)
+        self.assertEqual(len(sensor.extra_state_attributes), 4 + len(read_keys))
 
     def test_last_bill_exposes_amount_number_and_residual(self) -> None:
         attrs = self._attrs("ee_last_bill_status")
