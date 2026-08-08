@@ -1,0 +1,47 @@
+name: Home Assistant compatibility
+
+# Runs the test suite inside the official Home Assistant images to catch API
+# changes before users hit them. Deliberately not triggered by pull requests:
+# a break here is usually upstream's, and a recurring red mark on unrelated
+# work is how a check stops being read.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  compat:
+    name: Home Assistant ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    # dev is Home Assistant's development branch and breaks for reasons of its
+    # own; report it without failing the run. A stable or beta failure is ours.
+    continue-on-error: ${{ matrix.version == 'dev' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["stable", "beta", "dev"]
+    steps:
+      - uses: actions/checkout@v7
+
+      # The suite runs inside the image rather than against a pip-installed
+      # Home Assistant, so it exercises the exact build users receive, on the
+      # Python version that build ships with. Checking out on the runner and
+      # mounting the workspace avoids running JavaScript actions inside the
+      # Alpine-based image.
+      - name: Run tests against Home Assistant ${{ matrix.version }}
+        run: |
+          docker run --rm \
+            -v "$PWD:/src" -w /src \
+            ghcr.io/home-assistant/home-assistant:${{ matrix.version }} \
+            sh -c '
+              python -c "from homeassistant.const import __version__ as v; import sys; print(f\"Home Assistant {v} on Python {sys.version.split()[0]}\")" &&
+              pip install --quiet --root-user-action=ignore pytest pytest-asyncio pytest-cov &&
+              python -m pytest --cov=custom_components/nen
+            '

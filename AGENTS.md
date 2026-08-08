@@ -50,7 +50,9 @@ ruff format --check .
 mypy custom_components/nen
 ```
 
-Hassfest and HACS validation also run on every pull request.
+Hassfest and HACS validation also run on every pull request, and coverage must stay at or above 95%.
+
+Separately, a weekly workflow runs the suite inside the official Home Assistant `stable`, `beta` and `dev` images, to catch upstream API changes early. It never runs on pull requests. If it reports a failure on `stable` or `beta`, that is ours to fix; `dev` is informational.
 
 ## Releases
 
