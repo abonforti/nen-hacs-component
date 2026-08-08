@@ -95,10 +95,6 @@ class FakeClient:
         self.consumption_calls.append(supply_id)
         return {"annualConsumptions": {"totalConsumption": 100, "maxConsumption": 200}}
 
-    async def get_invoices(self, month, year, pods):
-        self._maybe_fail("get_invoices")
-        return {"podInvoices": []}
-
 
 def make_coordinator(client, excluded=None) -> NenDataCoordinator:
     """Build a coordinator bound to a fake client, skipping HA wiring."""
@@ -190,7 +186,6 @@ class FetchAllTest(unittest.IsolatedAsyncioTestCase):
                 "get_contract",
                 "get_subscription_detail",
                 "get_global_consumptions",
-                "get_invoices",
             },
         )
 
