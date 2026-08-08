@@ -53,7 +53,9 @@ pre-commit install
 
 ## API changes
 
-NeN's API is unofficial and undocumented. If an endpoint breaks:
+NeN's API is unofficial and undocumented. What is known about it is written down in [docs/API.md](docs/API.md).
+
+If an endpoint breaks:
 
 1. Open an issue with the error from HA logs
 2. Capture the new request from browser DevTools (Network tab, filter `prod.api.nen.it`)
