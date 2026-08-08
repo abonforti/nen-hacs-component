@@ -42,7 +42,12 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install linter tools
-        run: pip install ruff mypy
+        # The integration's own dependencies are needed too: without aiohttp and
+        # homeassistant installed, ignore_missing_imports hides every error that
+        # depends on their types.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
       - name: Ruff Check
         run: ruff check .
       - name: Ruff Format Check
