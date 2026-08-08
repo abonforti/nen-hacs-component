@@ -22,13 +22,17 @@ Field values are not always what they look like. Prices arrive in Italian decima
 
 The integration is a package at `custom_components/nen/` and uses relative imports (`from .api import ...`), so its modules cannot be imported standalone.
 
-Tests currently run as:
+Tests import it as a package and run from the repository root:
 
-```bash
-PYTHONPATH=custom_components/nen pytest
+```python
+from custom_components.nen.coordinator import _parse_contract
 ```
 
-With that path only modules free of relative imports are importable, which is why `models.py` is the only module under test today.
+```bash
+pytest
+```
+
+`pyproject.toml` sets `pythonpath = ["."]`, which is what makes that import resolve. Do not reintroduce a `PYTHONPATH=custom_components/nen` invocation: with that path the relative imports break and only `models.py` remains importable.
 
 ## Translations
 

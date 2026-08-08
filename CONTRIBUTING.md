@@ -21,8 +21,10 @@ Then restart HA and add the integration via the UI.
 ## Running tests
 
 ```bash
-pytest tests/ -v
+pytest
 ```
+
+Run it from the repository root. `pyproject.toml` puts the root on `sys.path`, so tests import the integration as a package (`from custom_components.nen.models import ...`).
 
 ## Code style
 

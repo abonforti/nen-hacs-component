@@ -1,6 +1,6 @@
 import unittest
 
-from models import (
+from custom_components.nen.models import (
     iter_subscriptions,
     latest_bills_by_utility,
     legacy_subscription_ids,
